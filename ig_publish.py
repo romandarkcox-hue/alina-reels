@@ -82,8 +82,9 @@ def publish(video: Path, caption: str):
     cid, upload_url = c["id"], c["uri"]
     # 2. загрузка видео
     data = video.read_bytes()
+    # файл принимается только с ключом ПОЛЬЗОВАТЕЛЯ (с ключом страницы — ProcessingFailedError, 13.11)
     r = call("POST", None, url=upload_url, data=data, headers={
-        "Authorization": f"OAuth {env('IG_PAGE_TOKEN')}",
+        "Authorization": f"OAuth {env('IG_USER_TOKEN') or env('IG_ACCESS_TOKEN')}",
         "offset": "0", "file_size": str(len(data))})
     if not r.get("success"):
         raise SystemExit(f"Загрузка не удалась: {r}")
