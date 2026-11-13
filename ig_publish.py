@@ -32,9 +32,16 @@ def env(name):
     val = os.environ.get(name)
     if not val and os.name == "nt":
         import winreg
-        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
-            val = winreg.QueryValueEx(k, name)[0]
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as k:
+                val = winreg.QueryValueEx(k, name)[0]
+        except FileNotFoundError:
+            val = None
     return val
+
+
+class ApiError(Exception):
+    pass
 
 
 def call(method, path, params=None, data=None, headers=None, url=None):
@@ -47,7 +54,7 @@ def call(method, path, params=None, data=None, headers=None, url=None):
         with urllib.request.urlopen(req, timeout=600) as r:
             return json.load(r)
     except urllib.error.HTTPError as e:
-        raise SystemExit(f"Instagram API {e.code}: {e.read().decode(errors='replace')}")
+        raise ApiError(f"Instagram API {e.code}: {e.read().decode(errors='replace')}")
 
 
 def now():
@@ -74,30 +81,43 @@ def check():
         raise SystemExit("Ключ смотрит не на аккаунт Алины — стоп.")
 
 
-def publish(video: Path, caption: str):
-    # 1. контейнер рилса с прямой загрузкой файла (13,8 МБ проверено 13.11 — берёт без ужатия)
+def upload(video: Path, caption: str):
+    """Черновик рилса + загрузка файла. Возвращает id черновика, готового к публикации."""
+    # 1. черновик с прямой загрузкой файла (ужимать видео не надо)
     c = call("POST", f"{IG_USER}/media", {
         "media_type": "REELS", "upload_type": "resumable",
         "caption": caption, "share_to_feed": "true"})
     cid, upload_url = c["id"], c["uri"]
     # 2. загрузка видео
     data = video.read_bytes()
-    # файл принимается только с ключом ПОЛЬЗОВАТЕЛЯ (с ключом страницы — ProcessingFailedError, 13.11)
     r = call("POST", None, url=upload_url, data=data, headers={
-        "Authorization": f"OAuth {env('IG_USER_TOKEN') or env('IG_ACCESS_TOKEN')}",
+        "Authorization": f"OAuth {env('IG_PAGE_TOKEN')}",
         "offset": "0", "file_size": str(len(data))})
     if not r.get("success"):
-        raise SystemExit(f"Загрузка не удалась: {r}")
+        raise ApiError(f"Загрузка не удалась: {r}")
     # 3. ждём обработки
     for _ in range(60):
         st = call("GET", cid, {"fields": "status_code,status"})
         if st.get("status_code") == "FINISHED":
-            break
+            return cid
         if st.get("status_code") in ("ERROR", "EXPIRED"):
-            raise SystemExit(f"Instagram не принял видео: {st}")
+            raise ApiError(f"Instagram не принял видео: {st}")
         time.sleep(10)
-    else:
-        raise SystemExit("Instagram слишком долго обрабатывает видео")
+    raise ApiError("Instagram слишком долго обрабатывает видео")
+
+
+def publish(video: Path, caption: str, tries: int = 10):
+    # Сервер загрузки Instagram часто отвечает ProcessingFailedError на исправный файл (13.11:
+    # 2 удачи из 9) — тогда делаем новый черновик и пробуем снова. Пост создаётся только в шаге 4.
+    for n in range(1, tries + 1):
+        try:
+            cid = upload(video, caption)
+            break
+        except ApiError as e:
+            print(f"Попытка {n}/{tries} не удалась: {e}", flush=True)
+            if n == tries:
+                raise SystemExit(f"Видео не загрузилось за {tries} попыток. Последняя ошибка: {e}")
+            time.sleep(30)
     # 4. публикация
     pub = call("POST", f"{IG_USER}/media_publish", {"creation_id": cid})
     media = call("GET", pub["id"], {"fields": "permalink"})
@@ -136,7 +156,10 @@ def main():
         return
     check()
     print(f"Публикую {video.name}", flush=True)
-    mid, link = publish(video, caption)
+    try:
+        mid, link = publish(video, caption)
+    except ApiError as e:
+        raise SystemExit(str(e))
     item["published"] = now().strftime("%Y-%m-%d %H:%M")
     item["media_id"], item["permalink"] = mid, link
     save_queue(q)
