@@ -4,6 +4,7 @@
   py -I yt_publish.py check                       — проверить доступ к каналу
   py -I yt_publish.py file VIDEO CAPTION [--privacy public|private|unlisted]
   py -I yt_publish.py next [--dry-run]            — первый рилс очереди, который ещё не на YouTube
+  py -I yt_publish.py today [--dry-run]           — рилс, вышедший сегодня в Instagram (если его ещё нет на YouTube)
   py -I yt_publish.py status VIDEO_ID             — статус загруженного ролика
 """
 import argparse, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
@@ -94,7 +95,7 @@ def tg(text):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("cmd", choices=["check", "file", "next", "status"])
+    p.add_argument("cmd", choices=["check", "file", "next", "today", "status"])
     p.add_argument("args", nargs="*")
     p.add_argument("--privacy", default="public", choices=["public", "private", "unlisted"])
     p.add_argument("--dry-run", action="store_true")
@@ -119,9 +120,15 @@ def main():
         return
 
     q = json.loads(QUEUE.read_text(encoding="utf-8"))
-    item = next((i for i in q if not i.get("yt_id")), None)
-    if not item:
-        print("В очереди нет рилсов для YouTube"); return
+    if a.cmd == "today":
+        today = datetime.now(MSK).strftime("%Y-%m-%d")
+        item = next((i for i in q if (i.get("published") or "").startswith(today) and not i.get("yt_id")), None)
+        if not item:
+            print(f"YouTube: на сегодня ({today}) загружать нечего"); return
+    else:
+        item = next((i for i in q if not i.get("yt_id")), None)
+        if not item:
+            print("В очереди нет рилсов для YouTube"); return
     caption = (HERE / item["caption"]).read_text(encoding="utf-8")
     print("YouTube:", item["video"])
     if a.dry_run:

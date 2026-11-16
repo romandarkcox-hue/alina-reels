@@ -1,4 +1,4 @@
-# Ежедневный рилс Алины в Instagram — на серверах GitHub (компьютер не нужен).
+# Ежедневный рилс Алины в Instagram и YouTube Shorts — на серверах GitHub (компьютер не нужен).
 # Расписание GitHub бывает с опозданием или пропуском, поэтому много попыток: 15:00, затем в :07 и :37 до 20:37 МСК.
 # Если сегодня рилс уже вышел — запуск сразу заканчивается (повторов не будет).
 name: publish
@@ -26,6 +26,9 @@ jobs:
       contents: write
     env:
       IG_PAGE_TOKEN: ${{ secrets.IG_PAGE_TOKEN }}
+      YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+      YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+      YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
       TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       PYTHONIOENCODING: utf-8
@@ -47,6 +50,11 @@ jobs:
             force) python ig_publish.py next --force ;;
             *) python ig_publish.py next ;;
           esac
+
+      - name: YouTube Shorts (тот же рилс, что сегодня вышел в Instagram)
+        if: always() && inputs.mode != 'check' && inputs.mode != 'dry-run'
+        continue-on-error: true
+        run: python yt_publish.py today
 
       - name: Записать, что вышло
         if: always()
