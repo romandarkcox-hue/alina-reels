@@ -121,6 +121,8 @@ def main():
 
     q = json.loads(QUEUE.read_text(encoding="utf-8"))
     if a.cmd == "today":
+        access_token()  # проверка ключей при каждом запуске
+        print("YouTube: ключ действует")
         today = datetime.now(MSK).strftime("%Y-%m-%d")
         item = next((i for i in q if (i.get("published") or "").startswith(today) and not i.get("yt_id")), None)
         if not item:
