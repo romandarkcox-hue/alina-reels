@@ -140,6 +140,10 @@ def main():
             print(i, "✓ " + it["published"] if it.get("published") else "…", it["video"])
         return
 
+    # GitHub иногда запускает расписание с опозданием на часы — ночью не публикуем
+    if not a.force and not a.dry_run and not (15 <= now().hour < 22):
+        print(f"Сейчас {now():%H:%M} МСК — вне окна публикации 15:00–22:00, выходим")
+        return
     today = now().strftime("%Y-%m-%d")
     if not a.force and any((it.get("published") or "").startswith(today) for it in q):
         print(f"Сегодня ({today}) рилс уже вышел — выходим")
