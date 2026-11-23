@@ -58,5 +58,21 @@
   "yt_id": "HQBgEXHcT8o",
   "yt_published": "2026-11-17 17:35",
   "yt_url": "https://youtube.com/shorts/HQBgEXHcT8o"
+ },
+ {
+  "video": "videos/reel28_cat_threes.mp4",
+  "caption": "captions/reel28_cat_threes.txt"
+ },
+ {
+  "video": "videos/reel30_bunny.mp4",
+  "caption": "captions/reel30_bunny.txt"
+ },
+ {
+  "video": "videos/reel29_six_animals.mp4",
+  "caption": "captions/reel29_six_animals.txt"
+ },
+ {
+  "video": "videos/reel31_puppy_six_v2.mp4",
+  "caption": "captions/reel31_puppy_six_v2.txt"
  }
 ]
