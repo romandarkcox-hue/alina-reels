@@ -2,9 +2,9 @@
 
     python ig_publish.py check              # ключ и лимит публикаций
     python ig_publish.py list               # очередь
-    python ig_publish.py next               # опубликовать следующий ролик (если сегодня ещё не было)
+    python ig_publish.py next               # опубликовать следующий ролик (если в этом окне ещё не было)
     python ig_publish.py next --dry-run     # показать, что выйдет, ничего не выкладывая
-    python ig_publish.py next --force       # выложить, даже если сегодня уже был рилс
+    python ig_publish.py next --force       # выложить в любое время, без проверки окна
 
 Очередь — queue.json: [{"video": "videos/...mp4", "caption": "captions/...txt", "published": null}, ...].
 Ключ — IG_PAGE_TOKEN (бессрочный ключ страницы Alina Sokolova). Публикуем ТОЛЬКО в аккаунт Алины.
@@ -26,6 +26,9 @@ QUEUE = ROOT / "queue.json"
 API = "https://graph.facebook.com/v21.0"
 IG_USER = "17841480762700707"  # @sokolova.aalina — только сюда
 MSK = timezone(timedelta(hours=3))  # Москва, без перехода на летнее время
+# Два рилса в день: дневной (основной запуск 12:00) и вечерний (19:00). Окно = с какого по какой час
+# можно выкладывать этот рилс, если GitHub запустил расписание с опозданием.
+SLOTS = [(12, 17), (19, 23)]
 
 
 def env(name):
@@ -140,14 +143,20 @@ def main():
             print(i, "✓ " + it["published"] if it.get("published") else "…", it["video"])
         return
 
-    # GitHub иногда запускает расписание с опозданием на часы — ночью не публикуем
-    if not a.force and not a.dry_run and not (15 <= now().hour < 22):
-        print(f"Сейчас {now():%H:%M} МСК — вне окна публикации 15:00–22:00, выходим")
-        return
-    today = now().strftime("%Y-%m-%d")
-    if not a.force and any((it.get("published") or "").startswith(today) for it in q):
-        print(f"Сегодня ({today}) рилс уже вышел — выходим")
-        return
+    # GitHub иногда запускает расписание с опозданием на часы — вне окон не публикуем
+    if not a.force and not a.dry_run:
+        h = now().hour
+        slot = next(((b, e) for b, e in SLOTS if b <= h < e), None)
+        if not slot:
+            print(f"Сейчас {now():%H:%M} МСК — вне окон публикации "
+                  + ", ".join(f"{b}:00–{e}:00" for b, e in SLOTS) + ", выходим")
+            return
+        today = now().strftime("%Y-%m-%d")
+        done = [it for it in q if (it.get("published") or "").startswith(today)
+                and slot[0] <= int(it["published"][11:13]) < slot[1]]
+        if done:
+            print(f"В окне {slot[0]}:00–{slot[1]}:00 рилс уже вышел ({done[0]['video']}) — выходим")
+            return
     item = next((it for it in q if not it.get("published")), None)
     if not item:
         print("Очередь пуста")
