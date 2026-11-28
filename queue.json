@@ -98,5 +98,25 @@
   "yt_id": "-ppty4Vij8s",
   "yt_published": "2026-11-26 21:45",
   "yt_url": "https://youtube.com/shorts/-ppty4Vij8s"
+ },
+ {
+  "video": "videos/reel32_wolf_hand.mp4",
+  "caption": "captions/reel32_wolf_hand.txt"
+ },
+ {
+  "video": "videos/reel33_shark_hand.mp4",
+  "caption": "captions/reel33_shark_hand.txt"
+ },
+ {
+  "video": "videos/reel36_bunnies_letters.mp4",
+  "caption": "captions/reel36_bunnies_letters.txt"
+ },
+ {
+  "video": "videos/reel34_peacock_hand.mp4",
+  "caption": "captions/reel34_peacock_hand.txt"
+ },
+ {
+  "video": "videos/reel35_hen_hand.mp4",
+  "caption": "captions/reel35_hen_hand.txt"
  }
 ]
