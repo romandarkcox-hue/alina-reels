@@ -29,6 +29,8 @@ MSK = timezone(timedelta(hours=3))  # Москва, без перехода на
 # Два рилса в день: дневной (основной запуск 12:00) и вечерний (19:00). Окно = с какого по какой час
 # можно выкладывать этот рилс, если GitHub запустил расписание с опозданием.
 SLOTS = [(12, 17), (19, 23)]
+# Пропустить окно: строки «ГГГГ-ММ-ДД ЧЧ» (ЧЧ — начало окна) в skip_slots.txt
+SKIP = ROOT / "skip_slots.txt"
 
 
 def env(name):
@@ -152,6 +154,10 @@ def main():
                   + ", ".join(f"{b}:00–{e}:00" for b, e in SLOTS) + ", выходим")
             return
         today = now().strftime("%Y-%m-%d")
+        skip = SKIP.read_text(encoding="utf-8").split() if SKIP.exists() else []
+        if f"{today} {slot[0]:02d}" in [" ".join(skip[i:i+2]) for i in range(0, len(skip) - 1, 2)]:
+            print(f"Окно {slot[0]}:00–{slot[1]}:00 сегодня пропускаем (skip_slots.txt) — выходим")
+            return
         done = [it for it in q if (it.get("published") or "").startswith(today)
                 and slot[0] <= int(it["published"][11:13]) < slot[1]]
         if done:
